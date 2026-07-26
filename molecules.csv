@@ -1,0 +1,5 @@
+SMILES,MW,logP,HBD,HBA,TPSA,Rotatable_Bonds,Ring_Count,_Mol
+CC(C)CC1=CC=C(C=C1)C(C)C(=O)O,206.28,3.5,1,2,37.3,4,1,<rdkit.Chem.rdchem.Mol object at 0x000001B51D0187B0>
+CCOC(=O)N1CCC(=C2C3=C(CCC4=C2N=CC=C4)C=C(C=C3)Cl)CC1,382.9,5.2,0,3,42.4,2,4,<rdkit.Chem.rdchem.Mol object at 0x000001B51D0182E0>
+C(C(CO[N+](=O)[O-])O[N+](=O)[O-])O[N+](=O)[O-],227.09,1.6,0,9,165.0,5,0,<rdkit.Chem.rdchem.Mol object at 0x000001B51D018120>
+CCN(CC)CC(=O)NC1=C(C=CC=C1C)C,234.34,2.3,1,2,32.3,5,1,<rdkit.Chem.rdchem.Mol object at 0x000001B51D0193F0>
