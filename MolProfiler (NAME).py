@@ -5,6 +5,7 @@ import pubchempy as pcp
 import pandas as pd
 from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem import PandasTools
+from rdkit.Chem import Descriptors, Lipinski
 IPythonConsole.ipython_usePNG = True
 
 def mol_summary(mol_name):
