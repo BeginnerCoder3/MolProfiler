@@ -49,7 +49,10 @@ def mol_summary(lead_name, smiles):
     conditions = [mol_MW <= 500, mol_HBA <= 10, mol_HBD <= 5, mol_logP <= 5]
     pass_ro5 = conditions.count(True) >= 3
     ro5_status = "Pass" if pass_ro5 else "Fail"
-    print(f"{lead_name} passes the Rule of 5's.")
+    if pass_ro5:
+        print(f"{lead_name} passes the Rule of 5.")
+    else:
+        print(f"{lead_name} fails the Rule of 5.")
 
     data = (
         f"""
@@ -81,10 +84,11 @@ def mol_summary(lead_name, smiles):
         "_Mol": lead  # Needed by WriteSDF to draw 2D structures in the file
     }
 
-for u in range (0, lead_count):
+for u in range(0, lead_count):
     summary = mol_summary(df_lead.iloc[u, 0], df_lead.iloc[u, 1])
     mol_data.append(summary)
-    u = u + 1
+    
+mol_data = [x for x in mol_data if x is not None]
 
 # create dataframe
 df = pd.DataFrame(mol_data)
@@ -96,7 +100,7 @@ print(df)
 # export to CSV
 df.drop(columns=["Name"], errors="ignore").to_csv("ADMET SUMMARY.csv", index=False)
 
-for i in range(0, lead_count):
+for i in range(0, len(df)):
 
     # export to SDF
     PandasTools.WriteSDF(df.loc[[i]], f"""{df.loc[i, "Name"]}.sdf""", molColName="_Mol", properties=list(df.columns))
@@ -104,4 +108,3 @@ for i in range(0, lead_count):
     # create images
     img = Draw.MolToImage(df.loc[i, "_Mol"], size=(300, 300), kekulize=True, wedgeBonds=True)
     img.save(f"""{df.loc[i, "Name"]}.png""")
-    i = i + 1
