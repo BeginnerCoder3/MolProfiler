@@ -2,46 +2,58 @@ from rdkit import Chem
 from rdkit.Chem.Draw import IPythonConsole
 from rdkit.Chem import Draw
 import pubchempy as pcp
+import sys
 import pandas as pd
 from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem import PandasTools
 from rdkit.Chem import Descriptors, Lipinski
 IPythonConsole.ipython_usePNG = True
 
-def mol_summary(mol_name):
+df_lead = pd.read_csv('lead compounds.csv', sep=';', header = None)
+print("DataFrame Shape:", df_lead.shape)
+print("DataFrame Columns:", df_lead.columns.tolist())
+lead_count = len(df_lead)
+mol_data = []
 
-    # get the compound from PubChem
-    mol = pcp.get_compounds(mol_name, 'name')
+def mol_summary(lead_name, smiles):
 
-    # get the name of the compound
-    molecule = mol[0].synonyms[0]
+    # convert smiles to mol object
+    lead = Chem.MolFromSmiles(smiles)
+
+    if lead is None:
+        print(f"Skipping {lead_name}: Invalid SMILES format '{smiles}'")
+        return None
 
     # determine molecular weight
-    mol_MW = mol[0].molecular_weight
+    mol_MW = Descriptors.MolWt(lead)
 
     # determine logP
-    mol_logP = mol[0].xlogp
+    mol_logP = Descriptors.MolLogP(lead)
 
     # determine HBD
-    mol_HBD = mol[0].h_bond_donor_count
-
+    mol_HBD = Descriptors.NumHDonors(lead)
+    
     # determine HBA
-    mol_HBA = mol[0].h_bond_acceptor_count
+    mol_HBA = Descriptors.NumHAcceptors(lead)
 
     # determine TPSA
-    mol_TPSA = mol[0].tpsa
+    mol_TPSA = Descriptors.TPSA(lead)
 
     # determine number of rotatable bonds
-    mol_RB = mol[0].rotatable_bond_count
+    mol_RB = Descriptors.NumRotatableBonds(lead)
 
     # determine ring count
-    smiles = mol[0].smiles
-    rdkit_mol = Chem.MolFromSmiles(smiles)
-    mol_RC = rdMolDescriptors.CalcNumRings(rdkit_mol)
+    mol_RC = rdMolDescriptors.CalcNumRings(lead)
+
+    #check if passes rule of 5
+    conditions = [mol_MW <= 500, mol_HBA <= 10, mol_HBD <= 5, mol_logP <= 5]
+    pass_ro5 = conditions.count(True) >= 3
+    ro5_status = "Pass" if pass_ro5 else "Fail"
+    print(f"{lead_name} passes the Rule of 5's.")
 
     data = (
         f"""
-        {molecule}:
+        {lead_name}:
 
         MW: {mol_MW}
         logP: {mol_logP}
@@ -56,24 +68,21 @@ def mol_summary(mol_name):
     print(data)
 
     return {
-        "Name": mol_name,
+        "Name": lead_name,
         "SMILES": smiles,
-        "MW": mol[0].molecular_weight,
-        "logP": mol[0].xlogp,
-        "HBD": mol[0].h_bond_donor_count,
-        "HBA": mol[0].h_bond_acceptor_count,
-        "TPSA": mol[0].tpsa,
-        "Rotatable_Bonds": mol[0].rotatable_bond_count,
-        "Ring_Count": rdMolDescriptors.CalcNumRings(rdkit_mol),
-        "_Mol": rdkit_mol  # Needed by WriteSDF to draw 2D structures in the file
+        "MW": mol_MW,
+        "logP": mol_logP,
+        "HBD": mol_HBD,
+        "HBA": mol_HBA,
+        "TPSA": mol_TPSA,
+        "Rotatable_Bonds": mol_RB,
+        "Ring_Count": mol_RC,
+        "Passes RO5's?": ro5_status,
+        "_Mol": lead  # Needed by WriteSDF to draw 2D structures in the file
     }
 
-df_name = pd.read_csv('lead compounds.csv')
-lead_count = len(df_name)
-mol_data = []
-
 for u in range (0, lead_count):
-    summary = mol_summary(df_name.iloc[u, 0])
+    summary = mol_summary(df_lead.iloc[u, 0], df_lead.iloc[u, 1])
     mol_data.append(summary)
     u = u + 1
 
@@ -81,11 +90,11 @@ for u in range (0, lead_count):
 df = pd.DataFrame(mol_data)
 
 # Step A: View table
-print("\n--- MOLECULAR TABLE ---")
-print(df.drop(columns=["_Mol"]))
+print("\n--- ADMET SUMMARY ---")
+print(df)
 
 # export to CSV
-df.drop(columns=["Name"]).to_csv("molecules.csv", index=False)
+df.drop(columns=["Name"], errors="ignore").to_csv("ADMET SUMMARY.csv", index=False)
 
 for i in range(0, lead_count):
 
