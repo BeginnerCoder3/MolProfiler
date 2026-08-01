@@ -6,6 +6,8 @@ import pandas as pd
 from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem import PandasTools
 from rdkit.Chem import Descriptors, Lipinski
+from rdkit.Chem import AllChem  # <-- Added for 3D coordinate generation
+from pathlib import Path
 IPythonConsole.ipython_usePNG = True
 
 df_lead = pd.read_csv('lead compounds.csv', sep=';', header = None)
@@ -64,10 +66,25 @@ def mol_summary(lead_name, smiles):
         TPSA: {mol_TPSA}
         Rotatable Bonds: {mol_RB}
         Ring count: {mol_RC}"""
-        
     )
 
     print(data)
+
+    # --- 3D COORDINATE GENERATION BLOCK ---
+    # 1. Hydrogens are mandatory for proper 3D geometry calculations
+    lead_3d = Chem.AddHs(lead)
+    
+    # 2. Embed 3D coordinates using the standard ETKDG toolkit
+    embed_status = AllChem.EmbedMolecule(lead_3d, AllChem.ETKDGv3())
+    
+    # 3. Optimize the structure with an energy force field if embedding succeeds
+    if embed_status == 0:
+        AllChem.MMFFOptimizeMolecule(lead_3d)
+    else:
+        # Fallback to a simpler 2D coordinate layout if 3D fails for a complex molecule
+        AllChem.Compute2DCoords(lead_3d)
+        print(f"Warning: Could not generate 3D coordinates for {lead_name}, falling back to 2D.")
+    # --------------------------------------
 
     return {
         "Name": lead_name,
@@ -80,7 +97,7 @@ def mol_summary(lead_name, smiles):
         "Rotatable_Bonds": mol_RB,
         "Ring_Count": mol_RC,
         "Passes RO5's?": ro5_status,
-        "_Mol": lead  # Needed by WriteSDF to draw 2D structures in the file
+        "_Mol": lead_3d  # Pass the 3D-embedded molecule object to the dataframe
     }
 
 for u in range(0, lead_count):
@@ -101,9 +118,20 @@ df.drop(columns=["Name"], errors="ignore").to_csv("ADMET SUMMARY.csv", index=Fal
 
 for i in range(0, len(df)):
 
+    # make a new folder
+    compound_name = df.loc[i, "Name"]
+    path = Path(compound_name)
+    path.mkdir(parents=True, exist_ok=True)
+
     # export to SDF
-    PandasTools.WriteSDF(df.loc[[i]], f"""{df.loc[i, "Name"]}.sdf""", molColName="_Mol", properties=list(df.columns))
+    path_sdf = path / f"{compound_name}.sdf"
+    PandasTools.WriteSDF(df.loc[[i]], str(path_sdf), molColName="_Mol", properties=list(df.columns))
 
     # create images
-    img = Draw.MolToImage(df.loc[i, "_Mol"], size=(300, 300), kekulize=True, wedgeBonds=True)
-    img.save(f"""{df.loc[i, "Name"]}.png""")
+    path_png = path / f"{compound_name}.png"
+    
+    # Generate 2D clean drawing coordinates just for the 2D PNG file slice
+    img_mol = Chem.Mol(df.loc[i, "_Mol"])
+    AllChem.Compute2DCoords(img_mol)
+    img = Draw.MolToImage(img_mol, size=(300, 300), kekulize=True, wedgeBonds=True)
+    img.save(path_png)
